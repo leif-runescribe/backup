@@ -1,0 +1,20 @@
+[package]
+name = "rust-progs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[[bin]]
+name = "x"
+path = "src/x.rs"
+
+[[bin]]
+name = "this"
+path = "src/bin/this.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"

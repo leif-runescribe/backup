@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game of Thrones Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+    <style>
+        body {
+            font-family: 'Garamond', serif; /* Use a serif font for a medieval touch */
+            background-image: url('/x.jpeg');            
+            background-size: cover;
+            background-attachment: fixed;
+        }
+    </style>
+</head>
+<body class="text-gray-900">
+    <div id="login" class="container mx-auto p-6 bg-gray-900 bg-opacity-80 rounded-lg mt-20 shadow-lg">
+        <h1 class="text-9xl mb-6 text-center text-yellow-300 font-bold">Game of Thrones Simulator</h1>
+        <div class="text-2xl font-bold flex justify-center mb-4">
+            <input type="text" id="playerName" placeholder="Enter your name" class="p-3 text-black rounded-lg border-2 border-gray-600 focus:outline-none focus:border-yellow-300">
+            <button id="createGame" class="text-2xl bg-blue-600 p-3 ml-2 rounded-lg shadow-lg hover:bg-blue-700 transition">Create a Game</button>
+        </div>
+        <div class="flex text-2xl font-bold justify-center">
+            <button id="joinGame" class="bg-green-600 p-3 mr-2 rounded-lg shadow-lg hover:bg-green-700 transition">Join a Game</button>
+            <input type="text" id="gameCode" placeholder="Enter game code" class="text-2xl p-3 text-black rounded-lg border-2 border-gray-600 focus:outline-none focus:border-yellow-300">
+            
+        </div>
+    </div>
+
+    <div id="game" class="hidden">
+        <div class="flex h-screen">
+            <div id="map" class="w-3/4 bg-cover bg-center relative border-4 border-gray-800 shadow-lg">
+                <img src="map.jpeg"/>
+                <!-- Map territories will be dynamically added here -->
+            </div>
+            <div id="sidebar" class="w-1/4 bg-gray-800 p-4 rounded-lg shadow-lg">
+                <h2 class="text-3xl mb-4 text-yellow-300">Game Info</h2>
+                <p class="text-lg">Game Code: <span id="displayGameCode" class="font-bold"></span></p>
+                <h3 class="text-2xl mt-4 mb-2 text-yellow-300">Global Stats</h3>
+                <ul id="globalStats" class="list-disc pl-5"></ul>
+                <h3 class="text-2xl mt-4 mb-2 text-yellow-300">Your Stats</h3>
+                <ul id="playerStats" class="list-disc pl-5"></ul>
+                <h3 class="text-2xl mt-4 mb-2 text-yellow-300">Events</h3>
+                <ul id="events" class="h-64 overflow-y-auto border border-gray-600 p-2 bg-gray-700 rounded-lg"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="tooltip" class="hidden absolute bg-gray-800 text-yellow-300 p-2 rounded-md border border-yellow-500"></div>
+
+    <script>
+        const socket = io();
+        let playerName, gameCode, playerTerritories = new Set();
+
+        document.getElementById('createGame').addEventListener('click', () => {
+            playerName = document.getElementById('playerName').value;
+            socket.emit('createGame', playerName);
+        });
+
+        document.getElementById('joinGame').addEventListener('click', () => {
+            playerName = document.getElementById('playerName').value;
+            gameCode = document.getElementById('gameCode').value;
+            socket.emit('joinGame', { gameCode, playerName });
+        });
+
+        socket.on('gameCreated', ({ gameCode: code, territories }) => {
+            gameCode = code;
+            document.getElementById('login').classList.add('hidden');
+            document.getElementById('game').classList.remove('hidden');
+            document.getElementById('displayGameCode').textContent = gameCode;
+            initializeMap(territories);
+        });
+
+        socket.on('gameJoined', ({ gameCode: code, territories }) => {
+            gameCode = code;
+            document.getElementById('login').classList.add('hidden');
+            document.getElementById('game').classList.remove('hidden');
+            document.getElementById('displayGameCode').textContent = gameCode;
+            initializeMap(territories);
+        });
+
+        socket.on('updateGlobalStats', (stats) => {
+            const globalStats = document.getElementById('globalStats');
+            globalStats.innerHTML = '';
+            for (const [key, value] of Object.entries(stats)) {
+                const li = document.createElement('li');
+                li.textContent = `${key}: ${value}`;
+                globalStats.appendChild(li);
+            }
+        });
+
+        socket.on('updatePlayerStats', (stats) => {
+            const playerStats = document.getElementById('playerStats');
+            playerStats.innerHTML = '';
+            for (const [key, value] of Object.entries(stats)) {
+                const li = document.createElement('li');
+                li.textContent = `${key}: ${value}`;
+                playerStats.appendChild(li);
+            }
+        });
+
+        socket.on('newEvent', (event) => {
+            const events = document.getElementById('events');
+            const li = document.createElement('li');
+            li.textContent = event;
+            events.appendChild(li);
+            events.scrollTop = events.scrollHeight;
+        });
+
+        // Inside socket.on('territoryUpdate', ...)
+socket.on('territoryUpdate', (territory) => {
+    const territoryElement = document.getElementById(`territory-${territory.name}`);
+    if (territoryElement) {
+        if (territory.owner) {
+            territoryElement.classList.remove('bg-gray-500');
+            territoryElement.classList.add(`bg-${territory.color}-500`); // Use the player's color
+            if (territory.owner === playerName) {
+                playerTerritories.add(territory.name);
+            }
+        } else {
+            territoryElement.classList.remove(`bg-${territory.color}-500`);
+            territoryElement.classList.add('bg-gray-500');
+            playerTerritories.delete(territory.name);
+        }
+    }
+});
+
+// Update player stats display
+socket.on('updatePlayerStats', (stats) => {
+    const playerStats = document.getElementById('playerStats');
+    playerStats.innerHTML = ''; // Clear existing stats
+    stats.territories.forEach(territory => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <strong>${territory.name}</strong><br>
+            Population: ${territory.population}<br>
+            Food Yield: ${territory.foodYield}<br>
+            Revenue: ${territory.revenue}<br>
+            Military Strength: ${territory.militaryStrength}<br>
+            Color: <span class="text-${territory.color}-500">${territory.color}</span>
+        `;
+        playerStats.appendChild(li);
+    });
+});
+
+
+        function initializeMap(territories) {
+            const map = document.getElementById('map');
+            map.innerHTML = ''; // Clear existing territories
+            territories.forEach(territory => {
+                const territoryElement = document.createElement('div');
+                territoryElement.id = `territory-${territory.name}`;
+                territoryElement.classList.add('absolute', 'w-16', 'h-16', 'bg-gray-500', 'rounded-full', 'flex', 'items-center', 'justify-center', 'cursor-pointer', 'hover:bg-red-500', 'transition-colors', 'border', 'border-gray-700', 'shadow-md');
+                territoryElement.style.left = `${territory.x}px`;
+                territoryElement.style.top = `${territory.y}px`;
+                territoryElement.textContent = territory.name;
+                territoryElement.addEventListener('click', () => claimTerritory(territory.name));
+                territoryElement.addEventListener('mouseover', (e) => showTooltip(e, territory));
+                territoryElement.addEventListener('mouseout', hideTooltip);
+                map.appendChild(territoryElement);
+            });
+        }
+
+        function claimTerritory(territoryName) {
+            socket.emit('claimTerritory', { gameCode, playerName, territoryName });
+        }
+
+        function showTooltip(event, territory) {
+            const tooltip = document.getElementById('tooltip');
+            if (playerTerritories.has(territory.name)) {
+                tooltip.innerHTML = `
+                    <strong class="text-xl">${territory.name}</strong><br>
+                    Population: ${territory.population}<br>
+                    Food Yield: ${territory.foodYield}<br>
+                    Revenue: ${territory.revenue}<br>
+                    Military Strength: ${territory.militaryStrength}
+                `;
+                tooltip.style.left = `${event.pageX + 10}px`;
+                tooltip.style.top = `${event.pageY + 10}px`;
+                tooltip.classList.remove('hidden');
+            }
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.add('hidden');
+        }
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection Error:', error);
+            alert('Failed to connect to the server. Please check if the server is running.');
+        });
+
+        socket.on('error', (error) => {
+            console.error('Server Error:', error);
+            alert('An error occurred: ' + error);
+        });
+    </script>
+</body>
+</html>

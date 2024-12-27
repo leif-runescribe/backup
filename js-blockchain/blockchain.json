@@ -1,0 +1,28 @@
+{
+  "chain": [
+    {
+      "timestamp": 1727568937728,
+      "transactions": [],
+      "previousHash": "0",
+      "hash": "ff9ae6389737fb367fa77756aabb398f2f9ad4d0615cd6f1e9831d39a036d46f",
+      "nonce": 0
+    },
+    {
+      "timestamp": 1727568937730,
+      "transactions": [
+        {
+          "fromAddress": null,
+          "toAddress": "131231",
+          "amount": 100,
+          "signature": null
+        }
+      ],
+      "previousHash": "ff9ae6389737fb367fa77756aabb398f2f9ad4d0615cd6f1e9831d39a036d46f",
+      "hash": "002a6d23c917ee3b0a81115a50856bfbf951ced264d6d2d4a0622670ce5f4878",
+      "nonce": 15
+    }
+  ],
+  "difficulty": 2,
+  "pendingTransactions": [],
+  "miningReward": 100
+}

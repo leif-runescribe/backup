@@ -1,0 +1,30 @@
+version: '3.8'  # Specify the Docker Compose file version
+
+services:
+  db:
+    container_name: db
+    image: postgres:13  # Use the official PostgreSQL 13 image
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres  # Create a default database named 'postgres'
+    ports:
+      - "5432:5432"  # Expose PostgreSQL on port 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # Persist PostgreSQL data
+
+  goapp:
+    container_name: goapp
+    image: goapp:1.0.0  # Name of the application image
+    build:
+      context: ./backend  # Directory for building the Go application
+      dockerfile: go.dockerfile  # Dockerfile for the Go application
+    environment:
+      DATABASE_URL: 'postgres://postgres:postgres@db:5432/postgres?sslmode=disable'  # Connection string to the PostgreSQL database
+    ports:
+      - "8080:8080"  # Expose the Go application on port 8080
+    depends_on:
+      - db  # Ensure the db service is started before goapp
+
+volumes:
+  pgdata: {}  # Define a volume for persistent PostgreSQL data
